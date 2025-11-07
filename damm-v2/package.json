@@ -1,0 +1,28 @@
+{
+  "name": "meteora-damm-v2-examples",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "lock-position": "tsx src/lock-position.ts",
+    "claim-position-fee": "tsx src/claim-position-fee.ts",
+    "split-position-legacy": "tsx src/split-position-legacy.ts",
+    "refresh-liquidity-and-lock-position": "tsx src/refresh-liquidity-and-lock-position.ts",
+    "get-user-positions": "tsx src/get-user-positions.ts",
+    "create-pool": "tsx src/create-pool.ts"
+  },
+  "keywords": [],
+  "author": "@dannweeeee",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.0",
+    "@meteora-ag/cp-amm-sdk": "^1.2.3",
+    "@solana/spl-token": "^0.4.13",
+    "@solana/web3.js": "^1.98.0",
+    "bs58": "^6.0.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.3"
+  }
+}
