@@ -2,6 +2,8 @@
 
 This repository contains practical code examples and implementations designed to help developers work with Meteora's SDKs. The goal is to provide simple, easy-to-understand examples that can be used as a starting point for building more complex applications.
 
+updated according to recent update meteora dbc and damm v2
+
 ## Features
 
 -  **Professional Code Quality**: Type-safe, well-structured code following best practices
