@@ -1,28 +1,25 @@
-import { Connection, PublicKey, Keypair } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import AmmImpl from "@meteora-ag/dynamic-amm-sdk";
+import { DEFAULT_RPC_URL, DEFAULT_COMMITMENT } from "../../../shared/constants";
+import { createConnection, validatePublicKey, formatError } from "../../../shared/utils";
 
 async function checkLockFees(
   connection: Connection,
   poolAddress: PublicKey,
   owner: PublicKey
-) {
-  // init AMM instance
-  const amm = await AmmImpl.create(connection as any, poolAddress);
+): Promise<void> {
+  const amm = await AmmImpl.create(connection, poolAddress);
 
-  // get user's lock escrow info
   const lockEscrow = await amm.getUserLockEscrow(owner);
 
   if (!lockEscrow) {
-    console.log("No lock escrow found for this user");
-    return;
+    throw new Error("No lock escrow found for this user");
   }
 
-  // check if there are unclaimed fees
   const unclaimedFees = lockEscrow.fee.unClaimed;
 
   if (unclaimedFees?.lp?.isZero()) {
-    console.log("No unclaimed fees available");
-    return;
+    throw new Error("No unclaimed fees available");
   }
 
   console.log("Unclaimed fees:");
@@ -34,21 +31,29 @@ async function checkLockFees(
   console.log(`Token B: ${lockEscrow.fee.claimed.tokenB.toString()}`);
 }
 
-async function main() {
+async function main(): Promise<void> {
   try {
-    const poolAddress = new PublicKey("YOUR_POOL_ADDRESS");
+    const poolAddressEnv = process.env.POOL_ADDRESS || "YOUR_POOL_ADDRESS";
+    validatePublicKey(poolAddressEnv, "Pool address");
+    const poolAddress = new PublicKey(poolAddressEnv);
 
-    const owner = new PublicKey("YOUR_WALLET_ADDRESS");
-    const connection = new Connection(
-      "https://api.mainnet-beta.solana.com",
-      "confirmed"
+    const ownerAddressEnv = process.env.WALLET_ADDRESS || "YOUR_WALLET_ADDRESS";
+    validatePublicKey(ownerAddressEnv, "Wallet address");
+    const owner = new PublicKey(ownerAddressEnv);
+
+    const connection = createConnection(
+      process.env.RPC_URL || DEFAULT_RPC_URL,
+      DEFAULT_COMMITMENT
     );
 
     await checkLockFees(connection, poolAddress, owner);
   } catch (error) {
-    console.error("Error:", error);
-    process.exit(1);
+    console.error("Error:", formatError(error));
+    throw error;
   }
 }
 
-main();
+main().catch((error) => {
+  console.error("Fatal error:", formatError(error));
+  process.exit(1);
+});

@@ -11,7 +11,6 @@ const POOL_CONFIG_DISCRIMINATOR = Buffer.from([
   26, 108, 14, 123, 116, 230, 129, 43,
 ]);
 
-// helper to deserialize BaseFeeConfig
 function deserializeBaseFeeConfig(buffer: Buffer, offset: number) {
   const cliffFeeNumerator = buffer.readBigUInt64LE(offset);
   offset += 8;
@@ -40,7 +39,6 @@ function deserializeBaseFeeConfig(buffer: Buffer, offset: number) {
   };
 }
 
-// helper to deserialize DynamicFeeConfig
 function deserializeDynamicFeeConfig(buffer: Buffer, offset: number) {
   const initialized = buffer.readUInt8(offset);
   offset += 1;
@@ -85,7 +83,6 @@ function deserializeDynamicFeeConfig(buffer: Buffer, offset: number) {
   };
 }
 
-// helper to deserialize PoolFeesConfig
 function deserializePoolFeesConfig(buffer: Buffer, offset: number) {
   const baseFeeResult = deserializeBaseFeeConfig(buffer, offset);
   const baseFee = baseFeeResult;
@@ -129,7 +126,6 @@ function deserializePoolFeesConfig(buffer: Buffer, offset: number) {
   };
 }
 
-// helper to deserialize LockedVestingConfig
 function deserializeLockedVestingConfig(buffer: Buffer, offset: number) {
   const amountPerPeriod = buffer.readBigUInt64LE(offset);
   offset += 8;
@@ -158,7 +154,6 @@ function deserializeLockedVestingConfig(buffer: Buffer, offset: number) {
   };
 }
 
-// helper to deserialize LiquidityDistributionConfig (single curve point)
 function deserializeLiquidityDistributionConfig(
   buffer: Buffer,
   offset: number
@@ -180,7 +175,6 @@ function deserializeLiquidityDistributionConfig(
   };
 }
 
-// helper to deserialize curve data (array of 20 LiquidityDistributionConfig)
 function deserializeCurveData(buffer: Buffer, offset: number) {
   const curve = [];
 
@@ -199,7 +193,6 @@ function deserializeCurveData(buffer: Buffer, offset: number) {
   };
 }
 
-// helper to deserialize PoolConfig data
 function deserializePoolConfig(data: Uint8Array) {
   const buffer = Buffer.from(data);
 
@@ -473,7 +466,6 @@ async function getConfig(configAddress?: string) {
       deserializedConfig.postMigrationTokenSupply.toString()
     );
 
-    // Display locked vesting config
     console.log("\nLocked Vesting Config:");
     console.log(
       "  Amount Per Period:",
@@ -496,7 +488,6 @@ async function getConfig(configAddress?: string) {
       deserializedConfig.lockedVestingConfig.cliffUnlockAmount.toString()
     );
 
-    // Display curve data (first few points to avoid overwhelming output)
     console.log("\nCurve Data (first 5 points):");
     for (let i = 0; i < Math.min(5, deserializedConfig.curve.length); i++) {
       const point = deserializedConfig.curve[i];

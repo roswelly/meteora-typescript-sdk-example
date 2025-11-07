@@ -34,7 +34,7 @@ async function splitPosition() {
   );
   const position = userPosition[0].position;
 
-  const positonState = await cpAmm.fetchPositionState(position);
+  const positionState = await cpAmm.fetchPositionState(position);
   const poolState = await cpAmm.fetchPoolState(pool);
   const currentSlot = await connection.getSlot();
   const blockTime = await connection.getBlockTime(currentSlot);
@@ -43,13 +43,12 @@ async function splitPosition() {
     throw new Error("Could not get block time");
   }
 
-  // 1. withdraw 50% liquidity from position
-  const withdrawLiquidityDelta = positonState.unlockedLiquidity.div(new BN(2));
+  const withdrawLiquidityDelta = positionState.unlockedLiquidity.div(new BN(2));
   const withdrawPositionTx = await cpAmm.removeLiquidity({
     owner: wallet.publicKey,
     pool,
     position,
-    positionNftAccount: derivePositionNftAccount(positonState.nftMint),
+    positionNftAccount: derivePositionNftAccount(positionState.nftMint),
     liquidityDelta: withdrawLiquidityDelta,
     tokenAAmountThreshold: new BN(0),
     tokenBAmountThreshold: new BN(0),
@@ -63,8 +62,6 @@ async function splitPosition() {
     currentPoint: new BN(blockTime),
   });
 
-  // 2 create and add 50% liquidity into new position
-  // recalculate liquidity delta
   const tokenAWithdrawAmount = getAmountAFromLiquidityDelta(
     withdrawLiquidityDelta,
     poolState.sqrtPrice,

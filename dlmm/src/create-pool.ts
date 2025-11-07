@@ -20,13 +20,13 @@ async function main() {
   const wallet = Keypair.fromSecretKey(bs58.decode("YOUR_WALLET_PRIVATE_KEY"));
   console.log("User wallet initialized:", wallet.publicKey.toBase58());
 
-  const binStep = 25; // Price increment/decrement percentage in basis points (400 = 4% price step between bins)
-  const feeBps = 1; // Trading fee in basis points (200 = 2% fee per swap)
-  const initialPrice = 1.333; // Initial price (in terms of quote/base price)
-  const activationType = 1; // 0 - Slot | 1 - Timestamp
-  const activationPoint = 1760070600; // Activation time of the pool depending on activationType
-  const creatorPoolOnOffControl = true; // Pool creator permission to enable/disable trading for permissionless pools
-  const hasAlphaVault = false; // If true, the alpha vault will be created after the pool is created
+  const binStep = 25;
+  const feeBps = 1;
+  const initialPrice = 1.333;
+  const activationType = 1;
+  const activationPoint = 1760070600;
+  const creatorPoolOnOffControl = true;
+  const hasAlphaVault = false;
 
   const quoteMint = new PublicKey(
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"

@@ -15,7 +15,6 @@ import bs58 from "bs58";
 async function checkAndClaimPositionFee() {
   console.log("Starting position retrieval and locking process...");
 
-  // Initialize connection
   const connection = new Connection(
     "https://api.mainnet-beta.solana.com",
     "confirmed"
@@ -28,15 +27,13 @@ async function checkAndClaimPositionFee() {
   const cpAmm = new CpAmm(connection);
 
   try {
-    // get pool state
     const poolState = await cpAmm.fetchPoolState(
       new PublicKey("YOUR_POOL_ADDRESS")
-    ); // DAMM V2 pool address
+    );
 
-    // get position address for the user
     const userPositions = await cpAmm.getUserPositionByPool(
-      new PublicKey("YOUR_POOL_ADDRESS"), // DAMM V2 pool address
-      new PublicKey("YOUR_WALLET_ADDRESS") // user wallet address
+      new PublicKey("YOUR_POOL_ADDRESS"),
+      new PublicKey("YOUR_WALLET_ADDRESS")
     );
 
     if (userPositions.length === 0) {
@@ -74,12 +71,10 @@ async function checkAndClaimPositionFee() {
     console.log("Unclaimed Fee B:", unClaimedReward.feeTokenB.toString());
     console.log("TOTAL POSITION FEE B:", totalPositionFeeB.toString());
 
-    // const tempWSolAccount = Keypair.generate();
-
     const claimPositionFeeTx = await cpAmm.claimPositionFee({
       owner: userWallet.publicKey,
       receiver: userWallet.publicKey,
-      pool: new PublicKey(""), // DAMM V2 pool address (can use deriveDAMMV2PoolAddress)
+      pool: new PublicKey(""),
       position: userPositions[0].position,
       positionNftAccount: userPositions[0].positionNftAccount,
       tokenAVault: poolState.tokenAVault,
@@ -89,10 +84,8 @@ async function checkAndClaimPositionFee() {
       tokenAProgram: getTokenProgram(poolState.tokenAFlag),
       tokenBProgram: getTokenProgram(poolState.tokenBFlag),
       feePayer: userWallet.publicKey,
-      //   tempWSolAccount: tempWSolAccount.publicKey,
     });
 
-    // send and confirm the transaction
     const signature = await sendAndConfirmTransaction(
       connection,
       claimPositionFeeTx,
@@ -115,7 +108,6 @@ async function checkAndClaimPositionFee() {
   }
 }
 
-// Execute the main function
 checkAndClaimPositionFee().catch((error) => {
   console.error("Fatal error in main function:", error);
   process.exit(1);

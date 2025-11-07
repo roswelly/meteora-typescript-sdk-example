@@ -17,7 +17,6 @@ import {
 async function getAndLockPosition() {
   console.log("Starting position retrieval and locking process...");
 
-  // Initialize connection
   const connection = new Connection(
     "https://api.mainnet-beta.solana.com",
     "confirmed"
@@ -27,16 +26,12 @@ async function getAndLockPosition() {
   const userWallet = new Wallet(userKeypair);
   console.log("User wallet initialized:", userWallet.publicKey.toBase58());
 
-  // const creatorWallet = new PublicKey("");
-  // console.log("Creator wallet:", creatorWallet.toBase58());
-
   const cpAmm = new CpAmm(connection);
 
   try {
-    // get position address for the user
     let userPositions = await cpAmm.getUserPositionByPool(
-      new PublicKey("YOUR_POOL_ADDRESS"), // DAMM V2 pool address (can use deriveDAMMV2PoolAddress)
-      new PublicKey("YOUR_WALLET_ADDRESS") // user wallet address
+      new PublicKey("YOUR_POOL_ADDRESS"),
+      new PublicKey("YOUR_WALLET_ADDRESS")
     );
 
     if (userPositions.length === 0) {
@@ -44,7 +39,6 @@ async function getAndLockPosition() {
       return;
     }
 
-    // display information about each position
     userPositions.forEach((position, index) => {
       console.log(`\nPosition #${index + 1}:`);
       console.log(`Position Address: ${position.position.toBase58()}`);
@@ -62,15 +56,13 @@ async function getAndLockPosition() {
       );
     });
 
-    // create vesting account
-    const vestingAccount = Keypair.generate(); // no need to save this keypair
+    const vestingAccount = Keypair.generate();
     console.log(
       "Created vesting account:",
       vestingAccount.publicKey.toBase58()
     );
 
     if (userPositions[0].positionState.vestedLiquidity.gt(new BN(0))) {
-      // Refresh vesting
       const vestings = await cpAmm.getAllVestingsByPosition(
         userPositions[0].position
       );
@@ -102,17 +94,15 @@ async function getAndLockPosition() {
       );
     }
 
-    // lock LP
-    const DURATION = 120; // 1 year in seconds (because my activation type is timestamp)
+    const DURATION = 120;
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const cliffPoint = new BN(currentTimestamp + DURATION);
     const periodFrequency = new BN(1);
-    const numberOfPeriods = 0; // Set to 0 since we want all liquidity at cliff
+    const numberOfPeriods = 0;
     const cliffUnlockLiquidity =
       userPositions[0].positionState.unlockedLiquidity;
     const liquidityPerPeriod = new BN(0);
 
-    // // Lock the position
     const lockPositionTx = await cpAmm.lockPosition({
       owner: userWallet.publicKey,
       pool: userPositions[0].positionState.pool,
@@ -127,7 +117,6 @@ async function getAndLockPosition() {
       numberOfPeriod: numberOfPeriods,
     });
 
-    // send and confirm the transaction
     const lockPositionSignature = await connection.sendTransaction(
       lockPositionTx,
       [userKeypair, vestingAccount]
@@ -137,30 +126,6 @@ async function getAndLockPosition() {
     console.log("\nPosition locked successfully!");
     console.log("Transaction: https://solscan.io/tx/" + lockPositionSignature);
     console.log("Vesting account:", vestingAccount.publicKey.toBase58());
-
-    // optional: transfer position to creator
-    // const setAuthorityIx = createSetAuthorityInstruction(
-    //   userPositions[0].positionNftAccount,
-    //   userWallet.publicKey,
-    //   AuthorityType.AccountOwner,
-    //   creatorWallet,
-    //   [],
-    //   TOKEN_2022_PROGRAM_ID
-    // );
-    // const assignOwnerTx = new Transaction().add(setAuthorityIx);
-    // const assignSig = await sendAndConfirmTransaction(
-    //   connection,
-    //   assignOwnerTx,
-    //   [userKeypair],
-    //   {
-    //     commitment: "confirmed",
-    //   }
-    // );
-
-    // console.log(
-    //   "Position locked and transferred to creator. Transaction: https://solscan.io/tx/" +
-    //     assignSig
-    // );
 
     process.exit(0);
   } catch (error) {
@@ -173,7 +138,6 @@ async function getAndLockPosition() {
   }
 }
 
-// Execute the main function
 getAndLockPosition().catch((error) => {
   console.error("Fatal error in main function:", error);
   process.exit(1);

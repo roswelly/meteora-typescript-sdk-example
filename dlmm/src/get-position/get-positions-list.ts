@@ -13,19 +13,16 @@ async function getPositionsList() {
     "confirmed"
   );
 
-  // Initialize user wallet (from bs58 private key)
   const user = Keypair.fromSecretKey(bs58.decode(""));
   console.log("User wallet initialized:", user.publicKey.toBase58());
 
-  // Initialize DLMM pool
   const poolAddress = new PublicKey(
     "5rCf1DM8LjKTw4YqhnoLcngyZYeNnQqztScTogYHAS6"
-  ); // SOL-USDC pool on mainnet
+  );
   const dlmmPool = await DLMMPool.create(connection, poolAddress);
   console.log("DLMM pool initialized successfully");
 
   try {
-    // Get user positions
     console.log("Fetching positions for user:", user.publicKey.toBase58());
     const { userPositions } = await dlmmPool.getPositionsByUserAndLbPair(
       user.publicKey
@@ -38,7 +35,6 @@ async function getPositionsList() {
 
     console.log(`Found ${userPositions.length} position(s)`);
 
-    // Display information about each position
     userPositions.forEach((position, index) => {
       console.log(`\nPosition #${index + 1}:`);
       console.log(`Position Address: ${position.publicKey.toBase58()}`);
@@ -52,7 +48,6 @@ async function getPositionsList() {
       const binData = position.positionData.positionBinData;
       console.log(`Bin Data: ${binData.length} entries`);
 
-      // Display some sample bin data if available
       if (binData.length > 0) {
         console.log("Sample bin data:");
         binData.slice(0, 3).forEach((bin, i) => {

@@ -41,11 +41,11 @@ async function main() {
   const poolAddress = new PublicKey("YOUR_DAMM_V1_POOL_ADDRESS");
   console.log(`- Pool address: ${poolAddress}`);
 
-  const stake2EarnVaultPubkey = deriveFeeVault(poolAddress, m3m3ProgramId);
-  console.log(`- Stake2Earn fee vault ${stake2EarnVaultPubkey}`);
+  const stake2EarnVaultPubKey = deriveFeeVault(poolAddress, m3m3ProgramId);
+  console.log(`- Stake2Earn fee vault ${stake2EarnVaultPubKey}`);
 
   const allocationContainsFeeFarmAddress = allocations.some((allocation) =>
-    new PublicKey(allocation.address).equals(stake2EarnVaultPubkey)
+    new PublicKey(allocation.address).equals(stake2EarnVaultPubKey)
   );
   if (!allocationContainsFeeFarmAddress) {
     throw new Error(

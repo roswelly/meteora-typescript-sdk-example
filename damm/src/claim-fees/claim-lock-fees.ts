@@ -1,7 +1,20 @@
-import { Connection, PublicKey, Keypair } from "@solana/web3.js";
+import { Connection, PublicKey, Keypair, ComputeBudgetProgram } from "@solana/web3.js";
 import AmmImpl from "@meteora-ag/dynamic-amm-sdk";
-import bs58 from "bs58";
-import { ComputeBudgetProgram } from "@solana/web3.js";
+import {
+  DEFAULT_COMPUTE_UNIT_LIMIT,
+  DEFAULT_COMPUTE_UNIT_PRICE_MICROLAMPORTS,
+  DEFAULT_MAX_RETRIES,
+  DEFAULT_RETRY_DELAY_MS,
+  DEFAULT_RPC_URL,
+  DEFAULT_COMMITMENT,
+} from "../../../shared/constants";
+import { confirmTransactionWithRetry, getLatestBlockhashSafe } from "../../../shared/transaction-utils";
+import {
+  createConnection,
+  createKeypairFromPrivateKey,
+  validatePublicKey,
+  formatError,
+} from "../../../shared/utils";
 
 async function checkAndClaimLockFees(
   connection: Connection,
@@ -9,141 +22,116 @@ async function checkAndClaimLockFees(
   owner: Keypair,
   payer: Keypair,
   receiver?: Keypair
-) {
-  try {
-    // init AMM instance
-    const amm = await AmmImpl.create(connection as any, poolAddress);
+): Promise<void> {
+  const amm = await AmmImpl.create(connection, poolAddress);
 
-    // get user's lock escrow info
-    const lockEscrow = await amm.getUserLockEscrow(owner.publicKey);
+  const lockEscrow = await amm.getUserLockEscrow(owner.publicKey);
 
-    if (!lockEscrow) {
-      console.log("No lock escrow found for this user");
-      return;
-    }
-
-    // check if there are unclaimed fees
-    const unclaimedFees = lockEscrow.fee.unClaimed;
-
-    if (unclaimedFees?.lp?.isZero()) {
-      console.log("No unclaimed fees available");
-      return;
-    }
-
-    console.log("Unclaimed fees:");
-    console.log(`LP tokens: ${unclaimedFees?.lp?.toString()}`);
-    console.log(`Token A: ${unclaimedFees.tokenA.toString()}`);
-    console.log(`Token B: ${unclaimedFees.tokenB.toString()}`);
-
-    const amountToClaim = unclaimedFees.lp;
-
-    if (!amountToClaim) {
-      console.log("No LP amount available to claim");
-      return;
-    }
-
-    const tempWSolAcc = Keypair.generate();
-
-    // create and send claim transaction
-    const claimTx = await amm.claimLockFee(
-      owner.publicKey,
-      amountToClaim,
-      payer.publicKey,
-      receiver?.publicKey,
-      tempWSolAcc?.publicKey
-    );
-
-    // Add priority fees
-    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-      units: 300000,
-    });
-    const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
-      microLamports: 50000,
-    });
-
-    claimTx.add(modifyComputeUnits);
-    claimTx.add(addPriorityFee);
-
-    // sign and send transaction
-    const signers = [owner];
-    if (payer) signers.push(payer);
-    if (receiver) signers.push(tempWSolAcc);
-
-    const signature = await connection.sendTransaction(claimTx as any, signers);
-
-    console.log(`Claim transaction sent: ${signature}`);
-    console.log("Waiting for confirmation...");
-
-    const maxRetries = 3;
-    let retryCount = 0;
-    let confirmed = false;
-
-    while (retryCount < maxRetries && !confirmed) {
-      try {
-        const confirmation = await connection.confirmTransaction(
-          {
-            signature,
-            blockhash: claimTx.recentBlockhash!,
-            lastValidBlockHeight: (
-              await connection.getLatestBlockhash()
-            ).lastValidBlockHeight,
-          },
-          "confirmed"
-        );
-
-        if (confirmation.value.err) {
-          throw new Error(`Transaction failed: ${confirmation.value.err}`);
-        }
-
-        confirmed = true;
-        console.log("Fees claimed successfully!");
-      } catch (error) {
-        retryCount++;
-        if (retryCount === maxRetries) {
-          console.error(`Transaction failed after ${maxRetries} attempts.`);
-          console.error(
-            "Please check the transaction status manually using the signature above."
-          );
-          throw error;
-        }
-        console.log(`Confirmation attempt ${retryCount} failed, retrying...`);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-    }
-  } catch (error) {
-    console.error("Error claiming fees:", error);
+  if (!lockEscrow) {
+    throw new Error("No lock escrow found for this user");
   }
+
+  const unclaimedFees = lockEscrow.fee.unClaimed;
+
+  if (unclaimedFees?.lp?.isZero()) {
+    throw new Error("No unclaimed fees available");
+  }
+
+  console.log("Unclaimed fees:");
+  console.log(`LP tokens: ${unclaimedFees?.lp?.toString()}`);
+  console.log(`Token A: ${unclaimedFees.tokenA.toString()}`);
+  console.log(`Token B: ${unclaimedFees.tokenB.toString()}`);
+
+  const amountToClaim = unclaimedFees.lp;
+
+  if (!amountToClaim) {
+    throw new Error("No LP amount available to claim");
+  }
+
+  const tempWSolAccount = Keypair.generate();
+
+  const claimTx = await amm.claimLockFee(
+    owner.publicKey,
+    amountToClaim,
+    payer.publicKey,
+    receiver?.publicKey,
+    tempWSolAccount?.publicKey
+  );
+
+  const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+    units: DEFAULT_COMPUTE_UNIT_LIMIT,
+  });
+  const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+    microLamports: DEFAULT_COMPUTE_UNIT_PRICE_MICROLAMPORTS,
+  });
+
+  claimTx.add(modifyComputeUnits);
+  claimTx.add(addPriorityFee);
+
+  const signers = [owner];
+  if (payer) signers.push(payer);
+  if (receiver) signers.push(tempWSolAccount);
+
+  const signature = await connection.sendTransaction(claimTx, signers);
+
+  console.log(`Claim transaction sent: ${signature}`);
+  console.log("Waiting for confirmation...");
+
+  const { blockhash, lastValidBlockHeight } = await getLatestBlockhashSafe(connection);
+
+  if (!claimTx.recentBlockhash) {
+    claimTx.recentBlockhash = blockhash;
+  }
+
+  await confirmTransactionWithRetry(
+    connection,
+    signature,
+    claimTx.recentBlockhash,
+    lastValidBlockHeight,
+    {
+      maxRetries: DEFAULT_MAX_RETRIES,
+      retryDelayMs: DEFAULT_RETRY_DELAY_MS,
+    }
+  );
+
+  console.log("Fees claimed successfully!");
 }
 
-async function main() {
+async function main(): Promise<void> {
   try {
-    const poolAddress = new PublicKey("");
+    const poolAddressEnv = process.env.POOL_ADDRESS || "";
+    validatePublicKey(poolAddressEnv, "Pool address");
+    const poolAddress = new PublicKey(poolAddressEnv);
 
-    const PAYER_PRIVATE_KEY = "";
-    const payerSecretKey = bs58.decode(PAYER_PRIVATE_KEY);
-    const payer = Keypair.fromSecretKey(payerSecretKey);
+    const PAYER_PRIVATE_KEY = process.env.PAYER_PRIVATE_KEY || "";
+    const payer = createKeypairFromPrivateKey(PAYER_PRIVATE_KEY);
     console.log("Payer public key:", payer.publicKey.toBase58());
 
-    const OWNER_PRIVATE_KEY = "";
-    const ownerSecretKey = bs58.decode(OWNER_PRIVATE_KEY);
-    const owner = Keypair.fromSecretKey(ownerSecretKey);
+    const OWNER_PRIVATE_KEY = process.env.OWNER_PRIVATE_KEY || "";
+    const owner = createKeypairFromPrivateKey(OWNER_PRIVATE_KEY);
     console.log("Owner public key:", owner.publicKey.toBase58());
 
-    const RECEIVER_PRIVATE_KEY = "";
-    const receiverSecretKey = bs58.decode(RECEIVER_PRIVATE_KEY);
-    const receiver = Keypair.fromSecretKey(receiverSecretKey);
-    console.log("Receiver public key:", receiver.publicKey.toBase58());
+    const RECEIVER_PRIVATE_KEY = process.env.RECEIVER_PRIVATE_KEY;
+    const receiver = RECEIVER_PRIVATE_KEY
+      ? createKeypairFromPrivateKey(RECEIVER_PRIVATE_KEY)
+      : undefined;
+    if (receiver) {
+      console.log("Receiver public key:", receiver.publicKey.toBase58());
+    }
 
-    const connection = new Connection(
-      "https://api.mainnet-beta.solana.com",
-      "confirmed"
+    const connection = createConnection(
+      process.env.RPC_URL || DEFAULT_RPC_URL,
+      DEFAULT_COMMITMENT
     );
 
-    await checkAndClaimLockFees(connection, poolAddress, owner, payer);
+    await checkAndClaimLockFees(connection, poolAddress, owner, payer, receiver);
   } catch (error) {
-    console.error("Error:", error);
-    process.exit(1);
+    console.error("Error:", formatError(error));
+    throw error;
   }
 }
 
-main();
+main().catch((error) => {
+  console.error("Fatal error:", formatError(error));
+  process.exit(1);
+});

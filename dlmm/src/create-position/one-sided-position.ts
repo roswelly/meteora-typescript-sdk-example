@@ -14,33 +14,27 @@ async function createOnSidedPosition() {
     "confirmed"
   );
 
-  // Initialise user wallet (from bs58 private key)
   const user = Keypair.fromSecretKey(bs58.decode("YOUR_USER_PRIVATE_KEY"));
   console.log("User wallet initialized:", user.publicKey.toBase58());
 
-  // Initialise DLMM pool
   const poolAddress = new PublicKey(
     "5rCf1DM8LjKTw4YqhnoLcngyZYeNnQqztScTogYHAS6"
-  ); // SOL-USDC pool on mainnet
+  );
   const dlmmPool = await DLMMPool.create(connection, poolAddress);
   console.log("DLMM pool initialized successfully");
 
-  // Get active bin information
   console.log("Fetching active bin information...");
   const activeBin = await dlmmPool.getActiveBin();
   console.log("Active bin ID:", activeBin.binId.toString());
 
-  // Calculate bin range
-  const TOTAL_RANGE_INTERVAL = 10; // 10 bins on each side of the active bin
+  const TOTAL_RANGE_INTERVAL = 10;
   const minBinId = activeBin.binId - TOTAL_RANGE_INTERVAL;
   const maxBinId = activeBin.binId + TOTAL_RANGE_INTERVAL;
   console.log(`Setting bin range: min=${minBinId}, max=${maxBinId}`);
 
-  // Set amount of token X (adjust decimals and amount as needed)
-  const totalXAmount = new BN(0.1 * 10 ** 9); // 0.1 SOL
-  const totalYAmount = new BN(0); // 0 USDC
+  const totalXAmount = new BN(0.1 * 10 ** 9);
+  const totalYAmount = new BN(0);
 
-  // Create new position keypair
   const newOneSidedPosition = new Keypair();
   console.log(
     "Created new position keypair:",
@@ -49,7 +43,6 @@ async function createOnSidedPosition() {
 
   try {
     console.log("Preparing to create position and add liquidity...");
-    // Create position
     const createPositionTx =
       await dlmmPool.initializePositionAndAddLiquidityByStrategy({
         positionPubKey: newOneSidedPosition.publicKey,
@@ -64,7 +57,6 @@ async function createOnSidedPosition() {
       });
     console.log("Transaction prepared, sending to network...");
 
-    // Send transaction
     const signature = await connection.sendTransaction(
       createPositionTx,
       [user, newOneSidedPosition],

@@ -55,13 +55,8 @@ async function initializeMultiplePositionsAndAddLiquidity() {
     new Decimal(10 ** (tokenBaseDecimals - tokenQuoteDecimals))
   );
 
-  // ============= CONFIGURATION =============
-
   const BASE_AMOUNT = 0.0001;
 
-  // =========================================
-
-  // lower bin: getBinIdFromPrice at initial price per lamport
   const lowerBinId = dlmmPool.getBinIdFromPrice(
     initialPricePerLamport.toNumber(),
     false
@@ -70,7 +65,6 @@ async function initializeMultiplePositionsAndAddLiquidity() {
     getPriceOfBinByBinId(lowerBinId, dlmmPool.lbPair.binStep)
   ).mul(new Decimal(10 ** (tokenBaseDecimals - tokenQuoteDecimals)));
 
-  // upper bin: for this example, up to 2x price, need price in tokens for getBinIdFromPrice
   const upperBinPrice_numeric = lowerBinPricePerToken.toNumber() * 2;
   const upperBinId = dlmmPool.getBinIdFromPrice(
     upperBinPrice_numeric / 10 ** (tokenBaseDecimals - tokenQuoteDecimals),
@@ -134,10 +128,8 @@ async function initializeMultiplePositionsAndAddLiquidity() {
     console.log("  → Step 1: Initializing ßposition and ATAs...");
     const initTx = new Transaction();
 
-    // Add ATA initialization instructions
     initializeAtaIxs.forEach((ix) => initTx.add(ix));
 
-    // Add position initialization instruction
     initTx.add(initializePositionIx);
 
     let blockhash = (await connection.getLatestBlockhash()).blockhash;
@@ -157,7 +149,6 @@ async function initializeMultiplePositionsAndAddLiquidity() {
     for (let j = 0; j < addLiquidityIxs.length; j++) {
       const liqTx = new Transaction();
 
-      // Add liquidity instructions for this batch
       addLiquidityIxs[j].forEach((ix) => liqTx.add(ix));
 
       blockhash = (await connection.getLatestBlockhash()).blockhash;

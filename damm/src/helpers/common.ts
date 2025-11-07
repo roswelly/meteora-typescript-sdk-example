@@ -33,7 +33,6 @@ export function fromAllocationsToAmount(
       percentage: allocation.percentage,
     });
   }
-  // the last wallet get remaining amount
   const lastAllocation = allocations[allocations.length - 1];
   if (!lastAllocation) {
     throw new Error(`Last allocation is undefined`);

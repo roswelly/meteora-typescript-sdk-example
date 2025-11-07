@@ -12,14 +12,11 @@ async function getActiveBin() {
     "confirmed"
   );
 
-  // Initialize DLMM pool
   const poolAddress = new PublicKey(
     "5rCf1DM8LjKTw4YqhnoLcngyZYeNnQqztScTogYHAS6"
-  ); // SOL-USDC pool on mainnet
+  );
   const dlmmPool = await DLMMPool.create(connection, poolAddress);
   console.log("DLMM pool initialized successfully");
-
-  // Get active bin information
   const activeBin = await dlmmPool.getActiveBin();
   const activeBinPriceLamport = activeBin.price;
   const activeBinPricePerToken = dlmmPool.fromPricePerLamport(

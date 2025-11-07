@@ -9,23 +9,18 @@ async function main() {
     "confirmed"
   );
 
-  // Initialise DLMM pool
   const poolAddress = new PublicKey("YOUR_POOL_ADDRESS");
   const dlmmPool = await DLMMPool.create(connection, poolAddress);
   console.log("DLMM pool initialized successfully");
 
-  // Get active bin information
   console.log("Fetching active bin information...");
   const activeBin = await dlmmPool.getActiveBin();
   console.log("Active bin ID:", activeBin.binId.toString());
   console.log("Active bin price per token:", activeBin.pricePerToken);
 
-  // Get price for a specific bin ID (e.g., bin ID 35)
   const binId = 69;
   const binStep = dlmmPool.lbPair.binStep;
   const pricePerLamport = getPriceOfBinByBinId(binId, binStep);
-
-  // Calculate price per token (adjusted for token decimals)
   const tokenXDecimals = dlmmPool.tokenX.mint.decimals;
   const tokenYDecimals = dlmmPool.tokenY.mint.decimals;
   const pricePerToken = pricePerLamport.mul(

@@ -10,7 +10,7 @@ This folder contains examples for interacting with Meteora's DLMM.
 
 - [Create a balance position](./src/create-position/balance.ts)
 - [Create an imbalance position](./src/create-position/imbalance.ts)
-- [Create a one-sided position](./src/create-position/onesided.ts)
+- [Create a one-sided position](./src/create-position/one-sided-position.ts)
 
 ## Get DLMM Position
 

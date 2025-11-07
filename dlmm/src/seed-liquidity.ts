@@ -83,7 +83,6 @@ async function main() {
   );
 
   if (sendPositionOwnerTokenProveIxs.length > 0) {
-    // run preflight ixs
     const { blockhash, lastValidBlockHeight } =
       await connection.getLatestBlockhash(connection.commitment);
     const setCUPriceIx = ComputeBudgetProgram.setComputeUnitPrice({
@@ -112,7 +111,6 @@ async function main() {
   }
 
   console.log(`>> Running initializeBinArraysAndPosition instructions...`);
-  // Initialize all bin array and position, transaction order can be in sequence or not
   {
     const { blockhash, lastValidBlockHeight } =
       await connection.getLatestBlockhash(connection.commitment);
@@ -152,7 +150,6 @@ async function main() {
     const { blockhash, lastValidBlockHeight } =
       await connection.getLatestBlockhash(connection.commitment);
 
-    // Deposit to positions created in above step. The add liquidity order can be in sequence or not.
     for (const groupIx of addLiquidityIxs) {
       const tx = new Transaction({
         feePayer: payer.publicKey,

@@ -30,8 +30,6 @@ async function claimCreatorTradingFee() {
 
     const feeMetrics = await client.state.getPoolCreatorFeeMetrics(poolAddress);
 
-    // const tempWSolAccount = Keypair.generate(); // use only if your quoteMint is SOL & receiver != creator
-
     const claimTradingFeeParam = {
       creator: creator.publicKey,
       payer: payer.publicKey,
@@ -39,7 +37,6 @@ async function claimCreatorTradingFee() {
       maxBaseAmount: feeMetrics.creatorBaseFee,
       maxQuoteAmount: feeMetrics.creatorQuoteFee,
       receiver: new PublicKey(""),
-      //   tempWSolAccount: tempWSolAccount.publicKey, // use only if your quoteMint is SOL & receiver != creator
     };
 
     console.log("Creating claim trading fee transaction...");

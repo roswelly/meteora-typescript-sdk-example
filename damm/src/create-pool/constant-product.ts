@@ -1,134 +1,105 @@
 import AmmImpl, { PROGRAM_ID } from "@meteora-ag/dynamic-amm-sdk";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import * as dotenv from "dotenv";
 import { derivePoolAddressWithConfig } from "@meteora-ag/dynamic-amm-sdk/dist/cjs/src/amm/utils";
 import { BN } from "@coral-xyz/anchor";
-import bs58 from "bs58";
+import { DEFAULT_RPC_URL, DEFAULT_COMMITMENT, USDC_MINT, SOL_MINT } from "../../../shared/constants";
+import { createConnection, createKeypairFromPrivateKey, formatError } from "../../../shared/utils";
+import { confirmTransactionWithRetry, getLatestBlockhashSafe } from "../../../shared/transaction-utils";
 
 dotenv.config();
 
-async function createConstantProductPool() {
+async function createConstantProductPool(): Promise<void> {
   console.log("Starting constant product pool creation process...");
 
-  // Initialise connection
-  const mainnetConnection = new Connection(
-    "https://api.mainnet-beta.solana.com",
-    "confirmed"
-  );
+  const rpcUrl = process.env.RPC_URL || DEFAULT_RPC_URL;
+  const mainnetConnection = createConnection(rpcUrl, DEFAULT_COMMITMENT);
 
-  // Initialise user wallet
-  const userWallet = new Wallet(Keypair.fromSecretKey(bs58.decode("")));
+  const privateKey = process.env.USER_PRIVATE_KEY || "";
+  const userKeypair = createKeypairFromPrivateKey(privateKey);
+  const userWallet = new Wallet(userKeypair);
   console.log("User wallet initialized:", userWallet.publicKey.toBase58());
 
-  // Initialise anchor provider
   const provider = new AnchorProvider(mainnetConnection, userWallet, {
-    commitment: "confirmed",
+    commitment: DEFAULT_COMMITMENT,
   });
 
-  try {
-    // Example: Creating a USDC-SOL pool
-    const tokenAMint = new PublicKey(
-      "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-    ); // USDC
-    const tokenBMint = new PublicKey(
-      "So11111111111111111111111111111111111111112"
-    ); // SOL
+  const tokenAMint = new PublicKey(process.env.TOKEN_A_MINT || USDC_MINT);
+  const tokenBMint = new PublicKey(process.env.TOKEN_B_MINT || SOL_MINT);
 
-    // Configuration address for the pool (get from https://amm-v2.meteora.ag/swagger-ui/#/pools/get_all_pool_configs)
-    const config = new PublicKey(
-      "DqqQ2kta9GAkCHzGrNAwJGDn4XDZp9SDYUBFz4z7rKRN"
-    );
+  const configAddress = process.env.CONFIG_ADDRESS || "DqqQ2kta9GAkCHzGrNAwJGDn4XDZp9SDYUBFz4z7rKRN";
+  const config = new PublicKey(configAddress);
 
-    // Amount of token A and B to be deposited to the pool
-    const tokenAAmount = new BN(100_00); // 10 USDC
-    const tokenBAmount = new BN(0.080389395 * 10 ** 9); // 0.080389395 SOL
+  const tokenAAmount = new BN(100_00);
+  const tokenBAmount = new BN(0.080389395 * 10 ** 9);
 
-    console.log("Pool configuration:");
-    console.log("Token A (USDC):", tokenAMint.toBase58());
-    console.log("Token B (SOL):", tokenBMint.toBase58());
-    console.log("Config address:", config.toBase58());
-    console.log("Initial liquidity - USDC:", tokenAAmount.toString());
-    console.log("Initial liquidity - SOL:", tokenBAmount.toString());
+  console.log("Pool configuration:");
+  console.log("Token A (USDC):", tokenAMint.toBase58());
+  console.log("Token B (SOL):", tokenBMint.toBase58());
+  console.log("Config address:", config.toBase58());
+  console.log("Initial liquidity - USDC:", tokenAAmount.toString());
+  console.log("Initial liquidity - SOL:", tokenBAmount.toString());
 
-    // Get pool address
-    const programId = new PublicKey(PROGRAM_ID);
-    const poolPubkey = derivePoolAddressWithConfig(
+  const programId = new PublicKey(PROGRAM_ID);
+  const poolPubKey = derivePoolAddressWithConfig(
+    tokenAMint,
+    tokenBMint,
+    config,
+    programId
+  );
+  console.log("Derived pool address:", poolPubKey.toBase58());
+
+  console.log("Preparing pool creation transactions...");
+  const transactions =
+    await AmmImpl.createPermissionlessConstantProductPoolWithConfig(
+      provider.connection,
+      userWallet.publicKey,
       tokenAMint,
       tokenBMint,
-      config,
-      programId
+      tokenAAmount,
+      tokenBAmount,
+      config
     );
-    console.log("Derived pool address:", poolPubkey.toBase58());
 
-    // Create pool transactions
-    console.log("Preparing pool creation transactions...");
-    const transactions =
-      await AmmImpl.createPermissionlessConstantProductPoolWithConfig(
-        provider.connection,
-        userWallet.publicKey, // payer
-        tokenAMint,
-        tokenBMint,
-        tokenAAmount,
-        tokenBAmount,
-        config
-      );
-
-    // Sign and send transactions
-    console.log("Sending transactions to network...");
-    for (const transaction of transactions) {
-      transaction.sign(userWallet.payer);
-      const txHash = await provider.connection.sendRawTransaction(
-        transaction.serialize(),
-        {
-          skipPreflight: false,
-          preflightCommitment: "confirmed",
-          maxRetries: 3,
-        }
-      );
-      console.log("Transaction sent, waiting for confirmation...");
-
-      try {
-        const latestBlockhash = await provider.connection.getLatestBlockhash();
-        const confirmation = await provider.connection.confirmTransaction({
-          signature: txHash,
-          blockhash: latestBlockhash.blockhash,
-          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-        });
-
-        if (confirmation.value.err) {
-          throw new Error(`Transaction failed: ${confirmation.value.err}`);
-        }
-
-        console.log("Transaction confirmed:", txHash);
-      } catch (error) {
-        console.error("Error confirming transaction:", error);
-        console.log(
-          "Transaction may still be processing. Check Solana Explorer for status."
-        );
-        console.log("Transaction signature:", txHash);
-        throw error;
+  console.log("Sending transactions to network...");
+  for (const transaction of transactions) {
+    transaction.sign(userWallet.payer);
+    const txHash = await provider.connection.sendRawTransaction(
+      transaction.serialize(),
+      {
+        skipPreflight: false,
+        preflightCommitment: DEFAULT_COMMITMENT,
+        maxRetries: 3,
       }
-    }
+    );
+    console.log("Transaction sent, waiting for confirmation...");
 
-    console.log("\nPool created successfully!");
-    console.log("Pool address:", poolPubkey.toBase58());
-    console.log(
-      "Transaction: https://solscan.io/tx/" + transactions[0].signature
+    const { blockhash, lastValidBlockHeight } = await getLatestBlockhashSafe(
+      provider.connection
     );
-    process.exit(0);
-  } catch (error) {
-    console.error("Error creating constant product pool:", error);
-    console.error(
-      "Error details:",
-      error instanceof Error ? error.message : String(error)
+
+    await confirmTransactionWithRetry(
+      provider.connection,
+      txHash,
+      blockhash,
+      lastValidBlockHeight,
+      {
+        commitment: DEFAULT_COMMITMENT,
+      }
     );
-    process.exit(1);
+
+    console.log("Transaction confirmed:", txHash);
+  }
+
+  console.log("\nPool created successfully!");
+  console.log("Pool address:", poolPubKey.toBase58());
+  if (transactions[0]?.signature) {
+    console.log(`Transaction: https://solscan.io/tx/${transactions[0].signature}`);
   }
 }
 
-// Execute the main function
 createConstantProductPool().catch((error) => {
-  console.error("Fatal error in main function:", error);
+  console.error("Fatal error:", formatError(error));
   process.exit(1);
 });

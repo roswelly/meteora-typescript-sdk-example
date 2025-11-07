@@ -6,7 +6,6 @@ import bs58 from "bs58";
 async function getAndLockPosition(secretKey: string, poolAddress: string) {
   console.log("Starting position retrieval and locking process...");
 
-  // Initialize connection
   const connection = new Connection(
     "https://api.mainnet-beta.solana.com",
     "confirmed"
@@ -29,14 +28,12 @@ async function getAndLockPosition(secretKey: string, poolAddress: string) {
       return;
     }
 
-    // create vesting account
     const vestingAccount = Keypair.generate();
     console.log(
       "Created vesting account:",
       vestingAccount.publicKey.toBase58()
     );
 
-    // refresh vesting if vested liquidity exists
     if (userPositions[0].positionState.vestedLiquidity.gt(new BN(0))) {
       const vestings = await cpAmm.getAllVestingsByPosition(
         userPositions[0].position
@@ -77,7 +74,6 @@ async function getAndLockPosition(secretKey: string, poolAddress: string) {
       userPositions[0].positionState.unlockedLiquidity;
     const liquidityPerPeriod = new BN(0);
 
-    // lock position
     const lockPositionTx = await cpAmm.lockPosition({
       owner: userWallet.publicKey,
       pool: userPositions[0].positionState.pool,
@@ -92,7 +88,6 @@ async function getAndLockPosition(secretKey: string, poolAddress: string) {
       numberOfPeriod: numberOfPeriods,
     });
 
-    // send and confirm the transaction
     const lockPositionSignature = await connection.sendTransaction(
       lockPositionTx,
       [userKeypair, vestingAccount]
